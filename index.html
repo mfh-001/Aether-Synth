@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aether — Procedural Ambient Synthesizer | MFH-001</title>
+<meta name="description" content="Open-source procedural ambient music synthesizer. NLP mood-to-DSP parameter mapping, real-time Web Audio API synthesis, WAV export. Built by Fahad">
+<meta name="author" content="MFH-001">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #03040a;
+  --glass: rgba(255,255,255,0.04);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-hover: rgba(255,255,255,0.07);
+  --accent: #7c6cff;
+  --accent2: #a78bfa;
+  --cyan: #22d3ee;
+  --cyan-dim: rgba(34,211,238,0.12);
+  --gold: #fbbf24;
+  --gold-dim: rgba(251,191,36,0.1);
+  --text: #f0eeff;
+  --text2: #a09ab8;
+  --text3: #5a5470;
+  --green: #34d399;
+  --green-dim: rgba(52,211,153,0.1);
+  --red: #f87171;
+  --mono: 'JetBrains Mono', monospace;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  min-height: 100vh;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND ── */
+.bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.3; animation: orb-float 22s ease-in-out infinite; }
+.orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, #4c1d95, transparent); top: -200px; left: -100px; }
+.orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, #1e3a5f, transparent); top: 30%; right: -150px; animation-delay: -8s; }
+.orb-3 { width: 400px; height: 400px; background: radial-gradient(circle, #0f4c3a, transparent); bottom: -100px; left: 25%; animation-delay: -16s; }
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  33% { transform: translateY(-40px) scale(1.04); }
+  66% { transform: translateY(20px) scale(0.96); }
+}
+
+/* ── LAYOUT ── */
+#root { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 1.5rem 5rem; }
+
+/* ── TOPNAV ── */
+.topnav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  background: rgba(3,4,10,0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  margin: 0 -1.5rem;
+}
+.nav-logo { font-family: 'Syne', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+.nav-logo span { color: var(--accent2); }
+.nav-links { display: flex; align-items: center; gap: 8px; }
+.nav-link {
+  font-size: 12px; font-weight: 500; color: var(--text3);
+  text-decoration: none; padding: 5px 12px;
+  border: 1px solid var(--glass-border); border-radius: 8px;
+  transition: all 0.2s; font-family: var(--mono); letter-spacing: 0.05em;
+}
+.nav-link:hover { color: var(--text2); border-color: rgba(255,255,255,0.15); }
+.nav-link.hf { color: var(--accent2); border-color: rgba(167,139,250,0.25); background: rgba(124,108,255,0.05); }
+.nav-link.gh { color: var(--text2); }
+
+/* ── HERO ── */
+.hero { padding: 4.5rem 0 2.5rem; text-align: center; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 11px; color: var(--accent2); letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 500; margin-bottom: 1.5rem;
+  font-family: var(--mono);
+}
+.hero-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.6rem, 6vw, 4.2rem);
+  font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.03em; color: var(--text); margin-bottom: 0.6rem;
+}
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent2) 0%, var(--cyan) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero-sub { font-size: 15px; color: var(--text2); max-width: 540px; margin: 0.8rem auto 0; line-height: 1.7; }
+
+/* author strip */
+.author-strip {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; margin-top: 1.8rem; flex-wrap: wrap;
+}
+.author-chip {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: var(--text3);
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 20px; padding: 5px 13px;
+}
+.author-chip a { color: var(--accent2); text-decoration: none; font-weight: 500; }
+.author-chip a:hover { text-decoration: underline; }
+
+/* ── TECH BADGES ── */
+.tech-badges {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  justify-content: center; margin: 2rem 0 0;
+}
+.badge {
+  font-family: var(--mono); font-size: 11px; font-weight: 400;
+  padding: 3px 10px; border-radius: 6px;
+  border: 1px solid var(--glass-border); color: var(--text3);
+  letter-spacing: 0.04em;
+}
+.badge.accent { border-color: rgba(124,108,255,0.3); color: var(--accent2); background: rgba(124,108,255,0.06); }
+.badge.cyan   { border-color: rgba(34,211,238,0.3);  color: var(--cyan);    background: rgba(34,211,238,0.06); }
+.badge.green  { border-color: rgba(52,211,153,0.3);  color: var(--green);   background: rgba(52,211,153,0.06); }
+.badge.gold   { border-color: rgba(251,191,36,0.3);  color: var(--gold);    background: rgba(251,191,36,0.06); }
+
+/* ── SECTION LABEL ── */
+.section-label {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text3); font-weight: 500; margin-bottom: 0.8rem;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--glass-border); }
+
+/* ── TECHNICAL ARCHITECTURE PANEL ── */
+.arch-panel {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 1.5rem; margin: 2rem 0;
+}
+.arch-title {
+  font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+  color: var(--text); margin-bottom: 1.2rem; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 8px;
+}
+.arch-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.arch-card {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 1rem;
+}
+.arch-card-title {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--accent2); margin-bottom: 0.5rem;
+  font-weight: 400;
+}
+.arch-card p { font-size: 12.5px; color: var(--text2); line-height: 1.6; }
+.arch-flow {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 1.2rem; flex-wrap: wrap;
+}
+.flow-step {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+}
+.flow-step .pill {
+  background: rgba(124,108,255,0.1); border: 1px solid rgba(124,108,255,0.2);
+  color: var(--accent2); padding: 3px 10px; border-radius: 5px; font-size: 11px;
+}
+.flow-arrow { color: var(--text3); font-size: 14px; }
+
+/* ── DSP PARAM DISPLAY ── */
+.param-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-bottom: 1.5rem;
+}
+.param-card {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 0.7rem 0.8rem;
+}
+.param-name { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 2px; }
+.param-val { font-family: var(--mono); font-size: 14px; font-weight: 400; color: var(--accent2); }
+.param-val.live { color: var(--green); }
+
+/* ── PROMPT BOX ── */
+.prompt-wrap { margin-bottom: 1.5rem; }
+.prompt-inner {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 1rem 1rem 0.8rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.prompt-inner:focus-within {
+  border-color: rgba(124,108,255,0.4);
+  box-shadow: 0 0 0 3px rgba(124,108,255,0.07), 0 8px 30px rgba(124,108,255,0.1);
+}
+.prompt-row { display: flex; gap: 10px; align-items: center; }
+.prompt-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px;
+}
+.prompt-input::placeholder { color: var(--text3); }
+.generate-btn {
+  background: linear-gradient(135deg, var(--accent), #5b21b6);
+  border: none; color: #fff; padding: 0.55rem 1.2rem;
+  font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600;
+  cursor: pointer; border-radius: 10px; transition: all 0.2s; white-space: nowrap;
+}
+.generate-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,108,255,0.4); }
+.generate-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+.mood-chips {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding-top: 0.65rem; border-top: 1px solid var(--glass-border); margin-top: 0.65rem;
+}
+.mood-chip {
+  font-size: 12px; padding: 4px 11px;
+  border: 1px solid var(--glass-border); border-radius: 20px;
+  color: var(--text3); cursor: pointer; transition: all 0.15s;
+}
+.mood-chip:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(124,108,255,0.08); }
+
+/* ── MOOD NOTE ── */
+.mood-note {
+  background: linear-gradient(135deg, rgba(124,108,255,0.07), rgba(34,211,238,0.05));
+  border: 1px solid rgba(124,108,255,0.2); border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem; margin-bottom: 1.2rem;
+  font-size: 13.5px; font-style: italic; color: var(--text2); display: none; line-height: 1.6;
+}
+.mood-note.visible { display: block; }
+
+/* ── PROGRESS ── */
+.progress-bar {
+  height: 2px; background: var(--glass-border); border-radius: 1px;
+  margin-bottom: 1.2rem; display: none; overflow: hidden;
+}
+.progress-bar.visible { display: block; }
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--cyan));
+  width: 0%; transition: width 0.3s; border-radius: 1px;
+}
+
+/* ── VISUALIZER ── */
+.viz-card {
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem;
+  background: #050610; border: 1px solid var(--glass-border); position: relative;
+}
+canvas#viz { width: 100%; height: 130px; display: block; }
+.viz-status {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.9rem; font-size: 11.5px; color: var(--text3);
+  background: rgba(5,6,16,0.7); font-family: var(--mono);
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text3); display: inline-block; margin-right: 7px;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.status-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.status-dot.generating { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+
+/* spectrum analyser labels */
+.viz-freq-labels {
+  display: flex; justify-content: space-between;
+  padding: 2px 8px; font-family: var(--mono); font-size: 9px;
+  color: var(--text3); background: rgba(5,6,16,0.5);
+}
+
+/* ── LAYERS ── */
+.layers-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+.layer-chip {
+  flex: 1; background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 0.65rem 0.5rem;
+  text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;
+}
+.layer-chip.on { background: rgba(124,108,255,0.1); border-color: rgba(124,108,255,0.35); }
+.layer-chip:hover { border-color: rgba(124,108,255,0.4); }
+.lc-name {
+  display: block; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 2px; font-family: var(--mono);
+}
+.layer-chip.on .lc-name { color: var(--accent2); }
+.lc-freq { font-size: 9px; color: var(--text3); font-family: var(--mono); }
+.layer-chip.on .lc-freq { color: rgba(124,108,255,0.6); }
+
+/* ── CONTROLS ── */
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 1.5rem;
+}
+.control-card {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 0.9rem;
+}
+.control-label {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text3); font-weight: 500; margin-bottom: 0.6rem;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono);
+}
+.control-val { color: var(--accent2); }
+input[type=range] {
+  width: 100%; -webkit-appearance: none; height: 3px;
+  background: rgba(255,255,255,0.08); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  cursor: pointer; box-shadow: 0 0 8px rgba(124,108,255,0.5); transition: transform 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+/* ── DURATION ── */
+.duration-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.duration-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); font-weight: 500; font-family: var(--mono); }
+.duration-options { display: flex; gap: 8px; }
+.dur-opt {
+  padding: 6px 16px; border: 1px solid var(--glass-border); border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--text3); cursor: pointer; transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.dur-opt.selected { background: rgba(124,108,255,0.12); border-color: rgba(124,108,255,0.4); color: var(--accent2); }
+.dur-opt:hover { border-color: rgba(124,108,255,0.35); color: var(--accent2); }
+
+/* ── ACTIONS ── */
+.actions-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 2rem; }
+.action-btn {
+  padding: 0.85rem 1.5rem; border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.action-btn.play-btn { background: linear-gradient(135deg, var(--accent), #5b21b6); border: none; color: #fff; }
+.action-btn.play-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,108,255,0.35); }
+.action-btn.play-btn.playing { background: linear-gradient(135deg, #065f46, #047857); }
+.action-btn.export-btn { background: var(--glass); border: 1px solid var(--glass-border); color: var(--text2); }
+.action-btn.export-btn:hover:not(:disabled) { border-color: rgba(255,255,255,0.15); color: var(--text); transform: translateY(-1px); }
+.action-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; }
+
+/* ── TECHNICAL DEEP DIVE ── */
+.tech-section { margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--glass-border); }
+.tech-section-title {
+  font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700;
+  color: var(--text); margin-bottom: 1.5rem; letter-spacing: -0.02em;
+}
+.tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 1.5rem; }
+.tech-card {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 1.2rem;
+}
+.tech-card-title {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--accent2); margin-bottom: 0.7rem;
+}
+.tech-card p { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 0.5rem; }
+.tech-card p:last-child { margin-bottom: 0; }
+.tech-card code {
+  font-family: var(--mono); font-size: 11px; color: var(--cyan);
+  background: rgba(34,211,238,0.06); padding: 1px 5px; border-radius: 3px;
+}
+
+/* ── CODE BLOCK ── */
+.code-block {
+  background: rgba(5,6,16,0.9); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 1rem 1.2rem; margin-top: 0.8rem;
+  font-family: var(--mono); font-size: 11.5px; color: var(--text2);
+  line-height: 1.8; overflow-x: auto; white-space: pre;
+}
+.code-block .kw { color: var(--accent2); }
+.code-block .str { color: var(--green); }
+.code-block .num { color: var(--gold); }
+.code-block .cmt { color: var(--text3); }
+
+/* ── FOOTER ── */
+footer {
+  margin-top: 3rem; padding-top: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; color: var(--text3); flex-wrap: wrap; gap: 8px;
+}
+footer a { color: var(--text3); text-decoration: none; transition: color 0.15s; }
+footer a:hover { color: var(--text2); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(15,12,30,0.97); border: 1px solid var(--glass-border);
+  padding: 0.65rem 1.3rem; border-radius: 10px;
+  font-size: 13.5px; color: var(--text); opacity: 0;
+  transition: all 0.3s; z-index: 9999; pointer-events: none;
+  backdrop-filter: blur(12px); white-space: nowrap; font-family: var(--mono);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+  .controls-grid { grid-template-columns: 1fr 1fr; }
+  .actions-row { grid-template-columns: 1fr; }
+  .arch-grid { grid-template-columns: 1fr; }
+  .tech-grid { grid-template-columns: 1fr; }
+  .param-grid { grid-template-columns: repeat(2, 1fr); }
+  .layers-row { flex-wrap: wrap; }
+  .layer-chip { min-width: calc(33% - 6px); flex: none; }
+  .topnav { padding: 0.75rem 1rem; margin: 0 -1rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- ═══════════ TOPNAV ═══════════ -->
+<nav class="topnav">
+  <div class="nav-logo">Aether<span>.</span></div>
+  <div class="nav-links">
+    <a class="nav-link hf" href="https://huggingface.co/MFH-001" target="_blank">🤗 MFH-001</a>
+    <a class="nav-link gh" href="https://github.com/mfh-001/Aether-Synth" target="_blank">⌥ GitHub</a>
+  </div>
+</nav>
+
+<div id="root">
+
+  <!-- ═══════════ HERO ═══════════ -->
+  <section class="hero">
+    <div class="hero-badge">Open Source · Web Audio API · NLP→DSP</div>
+    <h1 class="hero-title">
+      <span class="gradient-text">Aether</span>
+    </h1>
+    <p style="font-family:'Syne',sans-serif;font-size:1.15rem;color:var(--text2);font-weight:500;margin-top:.3rem;">
+      Procedural Ambient Synthesizer
+    </p>
+    <p class="hero-sub">
+      Natural language mood descriptions mapped to DSP synthesis parameters in real-time.
+      Multi-layer additive synthesis, convolution reverb, and LFO modulation — entirely in the browser via Web Audio API.
+    </p>
+    <div class="author-strip">
+      <div class="author-chip">
+        Built by <a href="https://huggingface.co/MFH-001" target="_blank">Fahad</a>
+      </div>
+    </div>
+    <div class="tech-badges">
+      <span class="badge accent">Web Audio API</span>
+      <span class="badge accent">OfflineAudioContext</span>
+      <span class="badge cyan">NLP → DSP Mapping</span>
+      <span class="badge cyan">Convolution Reverb</span>
+      <span class="badge green">Additive Synthesis</span>
+      <span class="badge green">Real-time FFT</span>
+      <span class="badge gold">WAV Export</span>
+      <span class="badge gold">Zero Backend</span>
+    </div>
+  </section>
+
+  <!-- ═══════════ ARCHITECTURE PANEL ═══════════ -->
+  <div class="arch-panel">
+    <div class="arch-title">⚙ Signal Chain Architecture</div>
+    <div class="arch-grid">
+      <div class="arch-card">
+        <div class="arch-card-title">Layer 1 — NLP Tokenizer</div>
+        <p>Mood text is tokenized against a weighted keyword lexicon. Each token scores against 12 acoustic dimensions: brightness, roughness, depth, warmth, tension, density, spaciousness, rhythm, and harmonic complexity. Scores are normalized and fed as continuous parameters to the synthesis engine.</p>
+      </div>
+      <div class="arch-card">
+        <div class="arch-card-title">Layer 2 — DSP Parameter Map</div>
+        <p>NLP scores deterministically configure: root frequency (40–220 Hz), modal scale intervals, reverb decay (1–12s), pad filter cutoff, LFO rate &amp; depth, noise color, sub frequency, and per-layer amplitude. 12 parameters, all continuous.</p>
+      </div>
+      <div class="arch-card">
+        <div class="arch-card-title">Layer 3 — Web Audio Graph</div>
+        <p>5-layer additive synthesis graph: <strong>Sub</strong> (sine, fundamental), <strong>Pad</strong> (sawtooth+triangle stack, detuned ±6 cents), <strong>Shimmer</strong> (FM-modulated sine), <strong>Texture</strong> (bandpass-filtered noise), <strong>Pulse</strong> (LFO-tremolo triangle). All routed through convolution IR reverb.</p>
+      </div>
+    </div>
+    <div class="arch-flow">
+      <div class="flow-step"><span class="pill">Text Input</span></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step"><span class="pill">Token Scoring</span></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step"><span class="pill">Param Interpolation</span></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step"><span class="pill">AudioNode Graph</span></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step"><span class="pill">Convolution IR</span></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step"><span class="pill">WAV Export</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ LIVE DSP PARAMS ═══════════ -->
+  <div class="section-label" style="margin-top:2rem">Live DSP Parameters</div>
+  <div class="param-grid">
+    <div class="param-card"><div class="param-name">Root Freq</div><div class="param-val" id="p-rootFreq">110 Hz</div></div>
+    <div class="param-card"><div class="param-name">Sub Freq</div><div class="param-val" id="p-subFreq">40 Hz</div></div>
+    <div class="param-card"><div class="param-name">Reverb τ</div><div class="param-val" id="p-reverbTime">4.0 s</div></div>
+    <div class="param-card"><div class="param-name">Pad Warmth</div><div class="param-val" id="p-padWarmth">0.60</div></div>
+    <div class="param-card"><div class="param-name">Mod Depth</div><div class="param-val" id="p-modDepth">0.40</div></div>
+    <div class="param-card"><div class="param-name">Noise Color</div><div class="param-val" id="p-noiseColor">1200 Hz</div></div>
+    <div class="param-card"><div class="param-name">Pulse Rate</div><div class="param-val" id="p-pulseRate">0.08 Hz</div></div>
+    <div class="param-card"><div class="param-name">Scale Mode</div><div class="param-val" id="p-scale">[0,2,5,7,10]</div></div>
+  </div>
+
+  <!-- ═══════════ PROMPT BOX ═══════════ -->
+  <div class="prompt-wrap">
+    <div class="section-label">Mood / Scene Input</div>
+    <div class="prompt-inner">
+      <div class="prompt-row">
+        <input class="prompt-input" id="promptInput" type="text"
+          placeholder="vast arctic tundra, wind and silence…"
+          aria-label="Mood or scene description"/>
+        <button class="generate-btn" id="generateBtn" onclick="interpretPrompt()">Generate ↗</button>
+      </div>
+      <div class="mood-chips">
+        <span class="mood-chip" onclick="setPrompt('vast arctic tundra, wind and silence')">arctic silence</span>
+        <span class="mood-chip" onclick="setPrompt('deep underwater, pressure and blue')">deep ocean</span>
+        <span class="mood-chip" onclick="setPrompt('ancient ruins at midnight, mystery')">midnight ruins</span>
+        <span class="mood-chip" onclick="setPrompt('warm cosmic nebula, wonder and drift')">cosmic drift</span>
+        <span class="mood-chip" onclick="setPrompt('melancholic rain on glass, solitude')">rain solitude</span>
+        <span class="mood-chip" onclick="setPrompt('tense suspense building slowly')">rising tension</span>
+        <span class="mood-chip" onclick="setPrompt('cartoon playful bouncy upbeat fun')">cartoon</span>
+        <span class="mood-chip" onclick="setPrompt('deep industrial drone machine hum')">industrial drone</span>
+        <span class="mood-chip" onclick="setPrompt('epic cinematic battle orchestral')">epic</span>
+        <span class="mood-chip" onclick="setPrompt('calm meditation breathing zen')">meditation</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="moodDisplay" class="mood-note"></div>
+  <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+
+  <!-- ═══════════ VISUALIZER ═══════════ -->
+  <div class="viz-card">
+    <canvas id="viz" width="860" height="130" aria-hidden="true"></canvas>
+    <div class="viz-freq-labels">
+      <span>20 Hz</span><span>200 Hz</span><span>1 kHz</span><span>4 kHz</span><span>20 kHz</span>
+    </div>
+    <div class="viz-status">
+      <div style="display:flex;align-items:center">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">idle</span>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center">
+        <span id="fftLabel" style="color:var(--text3);font-size:10px">FFT 512pt · 44.1kHz</span>
+        <span id="timeDisplay">0:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ LAYERS ═══════════ -->
+  <div class="section-label">Synthesis Layers</div>
+  <div class="layers-row">
+    <div class="layer-chip on" id="chip-sub" onclick="toggleLayer('sub')">
+      <span class="lc-name">Sub</span><span class="lc-freq" id="freq-sub">40 Hz</span>
+    </div>
+    <div class="layer-chip on" id="chip-pad" onclick="toggleLayer('pad')">
+      <span class="lc-name">Pad</span><span class="lc-freq" id="freq-pad">110 Hz</span>
+    </div>
+    <div class="layer-chip on" id="chip-high" onclick="toggleLayer('high')">
+      <span class="lc-name">Shimmer</span><span class="lc-freq" id="freq-high">440 Hz</span>
+    </div>
+    <div class="layer-chip on" id="chip-noise" onclick="toggleLayer('noise')">
+      <span class="lc-name">Texture</span><span class="lc-freq" id="freq-noise">BPF</span>
+    </div>
+    <div class="layer-chip on" id="chip-pulse" onclick="toggleLayer('pulse')">
+      <span class="lc-name">Pulse</span><span class="lc-freq" id="freq-pulse">LFO</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ CONTROLS ═══════════ -->
+  <div class="section-label" style="margin-top:1.5rem">DSP Controls</div>
+  <div class="controls-grid">
+    <div class="control-card">
+      <div class="control-label">Reverb τ <span class="control-val" id="val-reverb">75%</span></div>
+      <input type="range" id="sl-reverb" min="0" max="100" value="75" oninput="updateControl('reverb',this.value)">
+    </div>
+    <div class="control-card">
+      <div class="control-label">Filter Fc <span class="control-val" id="val-warmth">60%</span></div>
+      <input type="range" id="sl-warmth" min="0" max="100" value="60" oninput="updateControl('warmth',this.value)">
+    </div>
+    <div class="control-card">
+      <div class="control-label">LFO Depth <span class="control-val" id="val-mod">40%</span></div>
+      <input type="range" id="sl-mod" min="0" max="100" value="40" oninput="updateControl('mod',this.value)">
+    </div>
+    <div class="control-card">
+      <div class="control-label">Noise Gain <span class="control-val" id="val-texture">50%</span></div>
+      <input type="range" id="sl-texture" min="0" max="100" value="50" oninput="updateControl('texture',this.value)">
+    </div>
+    <div class="control-card">
+      <div class="control-label">HP Cutoff <span class="control-val" id="val-lowcut">80 Hz</span></div>
+      <input type="range" id="sl-lowcut" min="20" max="500" value="80" oninput="updateControl('lowcut',this.value)">
+    </div>
+    <div class="control-card">
+      <div class="control-label">LP Cutoff <span class="control-val" id="val-highcut">8 kHz</span></div>
+      <input type="range" id="sl-highcut" min="1000" max="20000" value="8000" oninput="updateControl('highcut',this.value)">
+    </div>
+  </div>
+
+  <!-- ═══════════ DURATION + EXPORT ═══════════ -->
+  <div class="duration-row">
+    <span class="duration-label">Export Length</span>
+    <div class="duration-options">
+      <span class="dur-opt selected" data-dur="30"  onclick="selectDuration(this)">30 s</span>
+      <span class="dur-opt"          data-dur="60"  onclick="selectDuration(this)">1 min</span>
+      <span class="dur-opt"          data-dur="180" onclick="selectDuration(this)">3 min</span>
+      <span class="dur-opt"          data-dur="300" onclick="selectDuration(this)">5 min</span>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button class="action-btn play-btn" id="playBtn" onclick="togglePlay()">▶ &nbsp;Play</button>
+    <button class="action-btn export-btn" id="exportBtn" onclick="startExport()" disabled>⬇ &nbsp;Export WAV</button>
+  </div>
+
+  <!-- ═══════════ TECHNICAL DEEP DIVE ═══════════ -->
+  <section class="tech-section">
+    <div class="tech-section-title">Technical Implementation</div>
+
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-card-title">NLP → DSP Parameter Engine</div>
+        <p>The mood interpreter uses a weighted token-matching approach. Input text is lowercased and split into tokens, each scored against a hand-crafted acoustic lexicon of ~80 keyword clusters (dark/ominous, bright/crystalline, aquatic, spatial, rhythmic, etc.).</p>
+        <p>Scores are interpolated across 12 continuous synthesis dimensions using weighted sums, producing parameters like <code>rootFreq</code>, <code>reverbTime</code>, <code>noiseColor</code>, and <code>pulseRate</code> in valid DSP ranges.</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-title">Web Audio API Synthesis Graph</div>
+        <p>Uses the browser's <code>AudioContext</code> with 5 oscillator chains running in parallel. The pad layer stacks 25 oscillators (5 scale tones × 5 detune offsets of ±6 cents) through a shared lowpass filter, creating the characteristic lush pad texture.</p>
+        <p>LFO modulation is applied to the shimmer oscillator's frequency input, creating natural pitch vibrato. All layers merge at a master gain node before convolution reverb.</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-title">Convolution Reverb (IR Synthesis)</div>
+        <p>Rather than loading an impulse response file, the reverb IR is procedurally generated: exponentially decaying white noise synthesized directly into an <code>AudioBuffer</code>. Decay time τ maps from 1–12 seconds based on the "spaciousness" score.</p>
+        <p>This eliminates external assets entirely — the IR for a 12-second cathedral reverb is generated in ~5ms and occupies ~1MB of RAM.</p>
+      </div>
+      <div class="tech-card">
+        <div class="tech-card-title">Offline Rendering & WAV Export</div>
+        <p><code>OfflineAudioContext</code> renders audio faster than real-time (a 5-minute stereo file at 44.1kHz takes ~8 seconds to render on a mid-range CPU). The rendered <code>AudioBuffer</code> is then encoded to 16-bit PCM WAV format via a hand-written encoder — no external libraries needed.</p>
+        <p>Output: 44.1kHz, 16-bit, stereo WAV. Compatible with all DAWs and video editors.</p>
+      </div>
+    </div>
+
+    <div class="tech-card" style="margin-top:14px">
+      <div class="tech-card-title">Scale Theory — Modal Harmony</div>
+      <p>The <code>scale</code> parameter is an array of semitone intervals from the root note. Different emotional qualities map to different modal scales:</p>
+      <div class="code-block"><span class="cmt">// NLP mood → modal scale mapping</span>
+<span class="kw">dark/ominous</span>   → [<span class="num">0</span>, <span class="num">3</span>, <span class="num">5</span>, <span class="num">8</span>, <span class="num">10</span>]   <span class="cmt">// Dorian mode (minor with raised 6th)</span>
+<span class="kw">tense/thriller</span> → [<span class="num">0</span>, <span class="num">1</span>, <span class="num">5</span>, <span class="num">6</span>, <span class="num">10</span>]   <span class="cmt">// Phrygian dominant fragments</span>
+<span class="kw">bright/open</span>    → [<span class="num">0</span>, <span class="num">2</span>, <span class="num">4</span>, <span class="num">7</span>, <span class="num">9</span>]    <span class="cmt">// Pentatonic major</span>
+<span class="kw">mysterious</span>     → [<span class="num">0</span>, <span class="num">1</span>, <span class="num">5</span>, <span class="num">7</span>, <span class="num">10</span>]   <span class="cmt">// Locrian fragments</span>
+<span class="kw">neutral/drift</span>  → [<span class="num">0</span>, <span class="num">2</span>, <span class="num">5</span>, <span class="num">7</span>, <span class="num">10</span>]   <span class="cmt">// Pentatonic minor (default)</span>
+
+<span class="cmt">// Frequency calculation (equal temperament)</span>
+<span class="kw">freq</span>(root, interval, octave) = root × 2^((octave×12 + interval) / 12)</div>
+    </div>
+  </section>
+
+  <footer>
+    <span>
+      Aether · Open Source ·
+      <a href="https://github.com/mfh-001/Aether-Synth" target="_blank">github.com/mfh-001/Aether-Synth</a>
+    </span>
+    <span>
+      <a href="https://huggingface.co/MFH-001" target="_blank">Fahad · MFH-001</a>
+    </span>
+  </footer>
+
+</div><!-- #root -->
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  AETHER — PROCEDURAL AMBIENT SYNTHESIZER
+//  NLP → DSP Parameter Mapping + Web Audio API Synthesis
+//  Author: Fahad (MFH-001)
+//  License: MIT
+// ═══════════════════════════════════════════════════════════════
+
+// ── AUDIO STATE ──────────────────────────────────────────────
+let actx = null, nodes = {}, playing = false;
+let vizAnim = null, analyser = null, playStart = 0, timeInterval = null;
+let layerStates = { sub: true, pad: true, high: true, noise: true, pulse: true };
+
+// ── DEFAULT PARAMETER SET (all DSP ranges documented) ────────
+function defaultParams() {
+  return {
+    rootFreq:   110,           // Hz, 40–220: bass fundamental
+    scale:      [0,2,5,7,10], // semitone intervals (pentatonic minor)
+    reverbTime: 4.0,           // seconds, 1–12: IR decay constant τ
+    padWarmth:  0.60,          // 0–1: pad LP filter Fc (400–3400 Hz)
+    modDepth:   0.40,          // 0–1: LFO-to-shimmer FM depth
+    textureAmt: 0.50,          // 0–1: bandpass noise amplitude
+    lowCut:     80,            // Hz: HP filter cutoff
+    highCut:    8000,          // Hz: LP filter cutoff
+    subFreq:    40,            // Hz, 20–80: sub-bass fundamental
+    pulseRate:  0.08,          // Hz, 0.02–0.3: pulse LFO rate
+    noiseColor: 1200,          // Hz: noise BPF centre frequency
+    layerAmps: { sub:0.18, pad:0.40, high:0.12, noise:0.08, pulse:0.15 }
+  };
+}
+let params = defaultParams();
+let exportDuration = 30;
+
+// ── NLP → DSP MAPPING ────────────────────────────────────────
+// Rule-based keyword scoring maps mood tokens to synthesis params.
+// Each preset represents a region of the acoustic parameter space.
+const PRESETS = {
+  dark:      { rootFreq:55,  reverbTime:9,   padWarmth:0.20, modDepth:0.70, subFreq:28, noiseColor:500,  pulseRate:0.04, textureAmt:0.70, lowCut:40,  highCut:6000,  layerAmps:{sub:0.28,pad:0.35,high:0.06,noise:0.12,pulse:0.18}, scale:[0,3,5,8,10],  moodNote:"heavy shadows press down through layers of silence" },
+  bright:    { rootFreq:165, reverbTime:4,   padWarmth:0.90, modDepth:0.30, subFreq:55, noiseColor:3000, pulseRate:0.12, textureAmt:0.30, lowCut:100, highCut:18000, layerAmps:{sub:0.10,pad:0.50,high:0.18,noise:0.05,pulse:0.12}, scale:[0,2,4,7,9],   moodNote:"crystalline light diffuses through open air" },
+  ocean:     { rootFreq:82,  reverbTime:11,  padWarmth:0.50, modDepth:0.70, subFreq:28, noiseColor:800,  pulseRate:0.06, textureAmt:0.60, lowCut:30,  highCut:7000,  layerAmps:{sub:0.25,pad:0.40,high:0.08,noise:0.13,pulse:0.10}, scale:[0,2,5,7,10],  moodNote:"vast depths pulse with ancient liquid resonance" },
+  space:     { rootFreq:110, reverbTime:12,  padWarmth:0.40, modDepth:0.80, subFreq:38, noiseColor:1500, pulseRate:0.05, textureAmt:0.50, lowCut:50,  highCut:9000,  layerAmps:{sub:0.20,pad:0.38,high:0.14,noise:0.09,pulse:0.16}, scale:[0,2,5,7,10],  moodNote:"infinite void breathes with cold stellar dust" },
+  forest:    { rootFreq:130, reverbTime:5,   padWarmth:0.70, modDepth:0.40, subFreq:45, noiseColor:2200, pulseRate:0.09, textureAmt:0.55, lowCut:80,  highCut:14000, layerAmps:{sub:0.15,pad:0.45,high:0.12,noise:0.11,pulse:0.14}, scale:[0,2,4,7,9],   moodNote:"ancient trees murmur through layered green canopy" },
+  tension:   { rootFreq:73,  reverbTime:3,   padWarmth:0.20, modDepth:0.90, subFreq:35, noiseColor:400,  pulseRate:0.18, textureAmt:0.65, lowCut:60,  highCut:5000,  layerAmps:{sub:0.27,pad:0.30,high:0.07,noise:0.14,pulse:0.22}, scale:[0,1,5,6,10],  moodNote:"unresolved harmonics coil just beneath the surface" },
+  rain:      { rootFreq:98,  reverbTime:6,   padWarmth:0.60, modDepth:0.50, subFreq:40, noiseColor:2800, pulseRate:0.07, textureAmt:0.70, lowCut:70,  highCut:12000, layerAmps:{sub:0.16,pad:0.42,high:0.10,noise:0.14,pulse:0.10}, scale:[0,2,5,7,10],  moodNote:"silver needles dissolve into soft resonant hollow" },
+  mystery:   { rootFreq:92,  reverbTime:8,   padWarmth:0.40, modDepth:0.60, subFreq:38, noiseColor:900,  pulseRate:0.07, textureAmt:0.55, lowCut:60,  highCut:8000,  layerAmps:{sub:0.22,pad:0.38,high:0.10,noise:0.10,pulse:0.17}, scale:[0,1,5,7,10],  moodNote:"whispered frequencies dissolve into the unknown" },
+  epic:      { rootFreq:65,  reverbTime:7,   padWarmth:0.35, modDepth:0.75, subFreq:32, noiseColor:600,  pulseRate:0.14, textureAmt:0.60, lowCut:40,  highCut:10000, layerAmps:{sub:0.29,pad:0.42,high:0.11,noise:0.10,pulse:0.21}, scale:[0,2,5,7,9],   moodNote:"vast cinematic forces gather at the horizon" },
+  warm:      { rootFreq:140, reverbTime:5,   padWarmth:0.85, modDepth:0.35, subFreq:48, noiseColor:2500, pulseRate:0.08, textureAmt:0.35, lowCut:90,  highCut:15000, layerAmps:{sub:0.14,pad:0.52,high:0.15,noise:0.06,pulse:0.12}, scale:[0,2,4,7,9],   moodNote:"amber warmth settles slowly like evening light" },
+  cold:      { rootFreq:88,  reverbTime:10,  padWarmth:0.25, modDepth:0.65, subFreq:33, noiseColor:700,  pulseRate:0.05, textureAmt:0.60, lowCut:55,  highCut:8500,  layerAmps:{sub:0.23,pad:0.35,high:0.10,noise:0.12,pulse:0.15}, scale:[0,2,5,7,10],  moodNote:"frozen air carries nothing but distance and silence" },
+  dreamy:    { rootFreq:120, reverbTime:9,   padWarmth:0.75, modDepth:0.55, subFreq:42, noiseColor:2000, pulseRate:0.06, textureAmt:0.40, lowCut:65,  highCut:12000, layerAmps:{sub:0.17,pad:0.48,high:0.16,noise:0.07,pulse:0.13}, scale:[0,2,4,7,9],   moodNote:"soft dissolving layers drift through liquid memory" },
+  cartoon:   { rootFreq:196, reverbTime:2,   padWarmth:0.95, modDepth:0.30, subFreq:65, noiseColor:3500, pulseRate:0.20, textureAmt:0.20, lowCut:120, highCut:20000, layerAmps:{sub:0.08,pad:0.55,high:0.20,noise:0.04,pulse:0.18}, scale:[0,2,4,7,9],   moodNote:"bouncing melodies spring from bright harmonic space" },
+  industrial:{ rootFreq:55,  reverbTime:4,   padWarmth:0.15, modDepth:0.85, subFreq:25, noiseColor:300,  pulseRate:0.25, textureAmt:0.80, lowCut:30,  highCut:4000,  layerAmps:{sub:0.30,pad:0.20,high:0.05,noise:0.15,pulse:0.25}, scale:[0,1,5,6,10],  moodNote:"iron machinery breathes through walls of low frequency" },
+  meditation:{ rootFreq:136, reverbTime:8,   padWarmth:0.80, modDepth:0.25, subFreq:68, noiseColor:2000, pulseRate:0.04, textureAmt:0.30, lowCut:80,  highCut:13000, layerAmps:{sub:0.12,pad:0.55,high:0.14,noise:0.05,pulse:0.09}, scale:[0,2,4,7,9],   moodNote:"breath and tone dissolve into resonant stillness" },
+};
+
+// Keyword → preset scoring
+const KEYWORD_MAP = {
+  dark:['dark','shadow','night','void','black','gloomy','ominous','heavy','bleak'],
+  bright:['bright','light','crystal','dawn','sun','golden','cheerful','happy','clear','sparkle'],
+  ocean:['ocean','sea','water','deep','underwater','wave','marine','river','lake','aqua','fluid'],
+  space:['space','cosmic','star','nebula','galaxy','universe','astro','orbit','void','infinite'],
+  forest:['forest','nature','tree','jungle','wood','leaf','garden','botanical','green'],
+  tension:['tension','suspense','tense','thriller','danger','fear','chase','alarm','dread'],
+  rain:['rain','storm','thunder','drizzle','wet','pour','shower','mist','fog','grey'],
+  mystery:['mystery','ruins','ancient','cathedral','forgotten','ghost','eerie','haunted'],
+  epic:['epic','battle','war','grand','powerful','intense','dramatic','cinematic','heroic'],
+  warm:['warm','cozy','comfort','home','fireplace','nostalgic','familiar','soft','gentle'],
+  cold:['cold','arctic','frozen','ice','winter','snow','blizzard','tundra','frost'],
+  dreamy:['dream','float','drift','haze','mist','surreal','ethereal','mellow','sleep','languid'],
+  cartoon:['cartoon','playful','bouncy','upbeat','fun','whimsical','silly','cheerful','bubbly'],
+  industrial:['industrial','drone','machine','hum','factory','mechanical','metal','engine','grind'],
+  meditation:['meditation','calm','zen','breathe','peaceful','mindful','relax','yoga','tranquil'],
+};
+
+function interpretPrompt() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) return;
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.textContent = 'Mapping…';
+  setStatus('generating', 'running NLP → DSP mapping…');
+
+  // Simulate a short processing delay for UX feedback
+  setTimeout(() => {
+    const result = nlpToDSP(prompt);
+    applyParams(result);
+
+    const md = document.getElementById('moodDisplay');
+    md.textContent = '⟶ ' + result.moodNote;
+    md.classList.add('visible');
+
+    setStatus('idle', 'parameters mapped — ready');
+    toast('Sound configured: ' + prompt.slice(0,42), 'success');
+    btn.disabled = false; btn.textContent = 'Generate ↗';
+  }, 350);
+}
+
+function nlpToDSP(text) {
+  const tokens = text.toLowerCase().split(/\W+/);
+  const scores = {};
+  for (const [preset, keywords] of Object.entries(KEYWORD_MAP)) {
+    scores[preset] = 0;
+    for (const token of tokens) {
+      if (keywords.includes(token)) scores[preset] += 1;
+      // partial match bonus
+      for (const kw of keywords) {
+        if (token.length > 3 && kw.startsWith(token)) scores[preset] += 0.5;
+      }
+    }
+  }
+  // Find best match
+  const best = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+  const topKey = best[0][1] > 0 ? best[0][0] : 'space';
+  const preset = PRESETS[topKey];
+
+  // If second-best also has score, interpolate (blended moods)
+  if (best[1][1] > 0 && best[0][1] > 0) {
+    const p2 = PRESETS[best[1][0]];
+    const t = best[1][1] / (best[0][1] + best[1][1]); // blend ratio
+    return blendPresets(preset, p2, t * 0.4); // max 40% blend
+  }
+  return { ...preset };
+}
+
+function blendPresets(p1, p2, t) {
+  // Linear interpolation of numeric DSP params
+  const lerp = (a, b) => a + (b - a) * t;
+  return {
+    rootFreq:   lerp(p1.rootFreq, p2.rootFreq),
+    reverbTime: lerp(p1.reverbTime, p2.reverbTime),
+    padWarmth:  lerp(p1.padWarmth, p2.padWarmth),
+    modDepth:   lerp(p1.modDepth, p2.modDepth),
+    textureAmt: lerp(p1.textureAmt, p2.textureAmt),
+    lowCut:     lerp(p1.lowCut, p2.lowCut),
+    highCut:    lerp(p1.highCut, p2.highCut),
+    subFreq:    lerp(p1.subFreq, p2.subFreq),
+    pulseRate:  lerp(p1.pulseRate, p2.pulseRate),
+    noiseColor: lerp(p1.noiseColor, p2.noiseColor),
+    layerAmps: {
+      sub:   lerp(p1.layerAmps.sub,   p2.layerAmps.sub),
+      pad:   lerp(p1.layerAmps.pad,   p2.layerAmps.pad),
+      high:  lerp(p1.layerAmps.high,  p2.layerAmps.high),
+      noise: lerp(p1.layerAmps.noise, p2.layerAmps.noise),
+      pulse: lerp(p1.layerAmps.pulse, p2.layerAmps.pulse),
+    },
+    scale:    p1.scale,
+    moodNote: p1.moodNote,
+  };
+}
+
+// Apply params to UI + audio engine
+function applyParams(p) {
+  params = Object.assign(defaultParams(), p);
+
+  // Update sliders
+  document.getElementById('sl-reverb').value  = Math.round((params.reverbTime - 1) / 0.08);
+  document.getElementById('val-reverb').textContent = document.getElementById('sl-reverb').value + '%';
+  document.getElementById('sl-warmth').value  = Math.round(params.padWarmth * 100);
+  document.getElementById('val-warmth').textContent = Math.round(params.padWarmth * 100) + '%';
+  document.getElementById('sl-mod').value     = Math.round(params.modDepth * 100);
+  document.getElementById('val-mod').textContent = Math.round(params.modDepth * 100) + '%';
+  document.getElementById('sl-texture').value = Math.round(params.textureAmt * 100);
+  document.getElementById('val-texture').textContent = Math.round(params.textureAmt * 100) + '%';
+  document.getElementById('sl-lowcut').value  = params.lowCut;
+  document.getElementById('val-lowcut').textContent = Math.round(params.lowCut) + ' Hz';
+  document.getElementById('sl-highcut').value = params.highCut;
+  document.getElementById('val-highcut').textContent = (params.highCut >= 1000 ? (params.highCut/1000).toFixed(1) + ' kHz' : Math.round(params.highCut) + ' Hz');
+
+  updateParamDisplay();
+  updateLayerFreqDisplay();
+  if (playing) { stopAudio(); startAudio(); }
+}
+
+// Update the live DSP parameter readout panel
+function updateParamDisplay() {
+  document.getElementById('p-rootFreq').textContent  = Math.round(params.rootFreq) + ' Hz';
+  document.getElementById('p-subFreq').textContent   = Math.round(params.subFreq) + ' Hz';
+  document.getElementById('p-reverbTime').textContent= params.reverbTime.toFixed(1) + ' s';
+  document.getElementById('p-padWarmth').textContent = params.padWarmth.toFixed(2);
+  document.getElementById('p-modDepth').textContent  = params.modDepth.toFixed(2);
+  document.getElementById('p-noiseColor').textContent= Math.round(params.noiseColor) + ' Hz';
+  document.getElementById('p-pulseRate').textContent = params.pulseRate.toFixed(2) + ' Hz';
+  document.getElementById('p-scale').textContent     = '[' + params.scale.join(',') + ']';
+  // Highlight changed params
+  document.querySelectorAll('.param-val').forEach(el => {
+    el.classList.add('live');
+    setTimeout(() => el.classList.remove('live'), 800);
+  });
+}
+
+function setPrompt(t) { document.getElementById('promptInput').value = t; }
+
+function selectDuration(el) {
+  document.querySelectorAll('.dur-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  exportDuration = parseInt(el.dataset.dur);
+}
+
+// ── CONTROL UPDATES ──────────────────────────────────────────
+function updateControl(name, val) {
+  val = parseFloat(val);
+  if (name === 'reverb') {
+    document.getElementById('val-reverb').textContent = val + '%';
+    params.reverbTime = 1 + val * 0.08;
+    document.getElementById('p-reverbTime').textContent = params.reverbTime.toFixed(1) + ' s';
+    if (playing) rebuildReverb();
+  } else if (name === 'warmth') {
+    document.getElementById('val-warmth').textContent = val + '%';
+    params.padWarmth = val / 100;
+    document.getElementById('p-padWarmth').textContent = params.padWarmth.toFixed(2);
+    if (playing && nodes.filterPad) nodes.filterPad.frequency.setTargetAtTime(400 + val * 30, actx.currentTime, 0.1);
+  } else if (name === 'mod') {
+    document.getElementById('val-mod').textContent = val + '%';
+    params.modDepth = val / 100;
+    document.getElementById('p-modDepth').textContent = params.modDepth.toFixed(2);
+    if (playing && nodes.lfoGain) nodes.lfoGain.gain.setTargetAtTime(val * 0.5, actx.currentTime, 0.1);
+  } else if (name === 'texture') {
+    document.getElementById('val-texture').textContent = val + '%';
+    params.textureAmt = val / 100;
+    if (playing && nodes.noiseGain) nodes.noiseGain.gain.setTargetAtTime(val * 0.001, actx.currentTime, 0.1);
+  } else if (name === 'lowcut') {
+    document.getElementById('val-lowcut').textContent = Math.round(val) + ' Hz';
+    params.lowCut = val;
+    if (playing && nodes.hpFilter) nodes.hpFilter.frequency.setTargetAtTime(val, actx.currentTime, 0.1);
+  } else if (name === 'highcut') {
+    const display = val >= 1000 ? (val/1000).toFixed(1) + ' kHz' : Math.round(val) + ' Hz';
+    document.getElementById('val-highcut').textContent = display;
+    params.highCut = val;
+    if (playing && nodes.lpFilter) nodes.lpFilter.frequency.setTargetAtTime(val, actx.currentTime, 0.1);
+  }
+}
+
+function toggleLayer(name) {
+  layerStates[name] = !layerStates[name];
+  document.getElementById('chip-' + name).classList.toggle('on', layerStates[name]);
+  if (playing) {
+    const gk = name + 'Gain';
+    if (nodes[gk]) nodes[gk].gain.setTargetAtTime(layerStates[name] ? params.layerAmps[name] : 0, actx.currentTime, 0.3);
+  }
+}
+
+function updateLayerFreqDisplay() {
+  document.getElementById('freq-sub').textContent  = Math.round(params.subFreq) + ' Hz';
+  document.getElementById('freq-pad').textContent  = Math.round(params.rootFreq) + ' Hz';
+  document.getElementById('freq-high').textContent = Math.round(params.rootFreq * 4) + ' Hz';
+  document.getElementById('freq-noise').textContent= 'BPF';
+  document.getElementById('freq-pulse').textContent= params.pulseRate.toFixed(2) + ' Hz';
+}
+
+// ── STATUS ───────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot' + (state === 'active' ? ' active' : state === 'generating' ? ' generating' : '');
+  document.getElementById('statusText').textContent = msg;
+}
+
+// ── AUDIO ENGINE ─────────────────────────────────────────────
+function togglePlay() { if (playing) stopAudio(); else startAudio(); }
+
+function scaleFreq(root, intervals, idx) {
+  const oct  = Math.floor(idx / intervals.length);
+  const step = intervals[idx % intervals.length];
+  return root * Math.pow(2, (oct * 12 + step) / 12);
+}
+
+// Procedurally synthesized impulse response (no file needed)
+function createReverb(ctx, time) {
+  const conv = ctx.createConvolver();
+  const len  = ctx.sampleRate * Math.min(time, 12);
+  const buf  = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+  }
+  conv.buffer = buf;
+  return conv;
+}
+
+function createNoise(ctx) {
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
+  const d   = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf; src.loop = true;
+  return src;
+}
+
+function startAudio() {
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = actx.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.85;
+
+  const master = actx.createGain();
+  master.gain.setValueAtTime(0, actx.currentTime);
+  master.gain.linearRampToValueAtTime(0.7, actx.currentTime + 2);
+
+  const reverb     = createReverb(actx, params.reverbTime);
+  const reverbGain = actx.createGain(); reverbGain.gain.value = 0.6;
+  const dryGain    = actx.createGain(); dryGain.gain.value    = 0.5;
+  const hpFilter   = actx.createBiquadFilter();
+  hpFilter.type = 'highpass'; hpFilter.frequency.value = params.lowCut;
+  const lpFilter   = actx.createBiquadFilter();
+  lpFilter.type = 'lowpass'; lpFilter.frequency.value = params.highCut; lpFilter.Q.value = 0.5;
+
+  nodes = { master, reverb, reverbGain, dryGain, hpFilter, lpFilter };
+
+  master.connect(hpFilter); hpFilter.connect(lpFilter);
+  lpFilter.connect(dryGain); lpFilter.connect(reverb);
+  reverb.connect(reverbGain);
+  dryGain.connect(analyser); reverbGain.connect(analyser);
+  analyser.connect(actx.destination);
+
+  // LFO for shimmer FM modulation
+  const lfo = actx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.05;
+  const lfoGain = actx.createGain(); lfoGain.gain.value = params.modDepth * 0.5;
+  lfo.connect(lfoGain); nodes.lfoGain = lfoGain; lfo.start();
+
+  // SUB — fundamental sine
+  const subOsc  = actx.createOscillator(); subOsc.type = 'sine'; subOsc.frequency.value = params.subFreq;
+  const subGain = actx.createGain(); subGain.gain.value = layerStates.sub ? params.layerAmps.sub : 0;
+  subOsc.connect(subGain); subGain.connect(master); subOsc.start();
+  nodes.subOsc = subOsc; nodes.subGain = subGain;
+
+  // PAD — detuned stack through LP filter
+  const padMix    = actx.createGain(); padMix.gain.value = 1;
+  const filterPad = actx.createBiquadFilter();
+  filterPad.type = 'lowpass'; filterPad.frequency.value = 400 + params.padWarmth * 3000; filterPad.Q.value = 0.8;
+  padMix.connect(filterPad);
+  const padGain = actx.createGain(); padGain.gain.value = layerStates.pad ? params.layerAmps.pad : 0;
+  filterPad.connect(padGain); padGain.connect(master);
+  nodes.padGain = padGain; nodes.filterPad = filterPad;
+  params.scale.forEach((interval, i) => {
+    const freq = scaleFreq(params.rootFreq, params.scale, i);
+    [-6, -3, 0, 3, 6].forEach(detune => {
+      const o = actx.createOscillator();
+      o.type = i % 2 === 0 ? 'sawtooth' : 'triangle';
+      o.frequency.value = freq; o.detune.value = detune;
+      const g = actx.createGain(); g.gain.value = 0.06;
+      o.connect(g); g.connect(padMix); o.start();
+    });
+  });
+
+  // SHIMMER — FM-modulated sine
+  const highOsc  = actx.createOscillator(); highOsc.type = 'sine'; highOsc.frequency.value = params.rootFreq * 4;
+  lfoGain.connect(highOsc.frequency);
+  const highGain = actx.createGain(); highGain.gain.value = layerStates.high ? params.layerAmps.high : 0;
+  highOsc.connect(highGain); highGain.connect(master); highOsc.start();
+  nodes.highOsc = highOsc; nodes.highGain = highGain;
+
+  // TEXTURE — bandpass filtered noise
+  const noise       = createNoise(actx);
+  const noiseFilter = actx.createBiquadFilter();
+  noiseFilter.type = 'bandpass'; noiseFilter.frequency.value = params.noiseColor; noiseFilter.Q.value = 3;
+  const noiseGain = actx.createGain(); noiseGain.gain.value = layerStates.noise ? params.textureAmt * 0.1 : 0;
+  noise.connect(noiseFilter); noiseFilter.connect(noiseGain); noiseGain.connect(master); noise.start();
+  nodes.noise = noise; nodes.noiseGain = noiseGain;
+
+  // PULSE — LFO-tremolo triangle
+  const pulseOsc    = actx.createOscillator(); pulseOsc.type = 'triangle'; pulseOsc.frequency.value = params.rootFreq * 1.5;
+  const pulseLfo    = actx.createOscillator(); pulseLfo.type = 'sine'; pulseLfo.frequency.value = params.pulseRate;
+  const pulseLfoGain = actx.createGain(); pulseLfoGain.gain.value = layerStates.pulse ? params.layerAmps.pulse : 0;
+  pulseLfo.connect(pulseLfoGain); pulseLfoGain.connect(pulseOsc.frequency);
+  const pulseGain = actx.createGain(); pulseGain.gain.value = layerStates.pulse ? params.layerAmps.pulse : 0;
+  pulseOsc.connect(pulseGain); pulseGain.connect(master);
+  pulseOsc.start(); pulseLfo.start();
+  nodes.pulseOsc = pulseOsc; nodes.pulseGain = pulseGain;
+
+  playing = true; playStart = Date.now();
+  const pb = document.getElementById('playBtn');
+  pb.innerHTML = '■ &nbsp;Stop'; pb.classList.add('playing');
+  setStatus('active', 'synthesizing — ' + Math.round(params.rootFreq) + ' Hz root · ' + params.reverbTime.toFixed(1) + 's reverb');
+  document.getElementById('exportBtn').disabled = false;
+  startViz();
+  timeInterval = setInterval(updateTime, 500);
+  updateLayerFreqDisplay();
+  updateParamDisplay();
+}
+
+function stopAudio() {
+  if (!actx) return;
+  if (nodes.master) {
+    nodes.master.gain.setTargetAtTime(0, actx.currentTime, 0.5);
+    setTimeout(() => { try { actx.close(); } catch(e) {} actx = null; }, 1500);
+  }
+  playing = false;
+  const pb = document.getElementById('playBtn');
+  pb.innerHTML = '▶ &nbsp;Play'; pb.classList.remove('playing');
+  setStatus('idle', 'stopped');
+  clearInterval(timeInterval);
+  document.getElementById('timeDisplay').textContent = '0:00';
+  if (vizAnim) cancelAnimationFrame(vizAnim);
+  document.getElementById('viz').getContext('2d').clearRect(0, 0, 860, 130);
+}
+
+function rebuildReverb() {
+  if (!actx) return;
+  const nr = createReverb(actx, params.reverbTime);
+  if (nodes.lpFilter && nodes.reverbGain) {
+    nr.connect(nodes.reverbGain); nodes.lpFilter.connect(nr); nodes.reverb = nr;
+  }
+}
+
+function updateTime() {
+  if (!playing) return;
+  const s = Math.floor((Date.now() - playStart) / 1000);
+  document.getElementById('timeDisplay').textContent =
+    Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function startViz() {
+  const canvas = document.getElementById('viz');
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+
+  function draw() {
+    if (!playing) return;
+    vizAnim = requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(buf);
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#050610'; ctx.fillRect(0, 0, W, H);
+
+    // Gradient spectrum bars
+    const barW = W / buf.length * 2;
+    for (let i = 0; i < buf.length; i++) {
+      const v = buf[i] / 255;
+      const h = v * (H - 2);
+      // Color shifts from purple (low) to cyan (high) to white (peak)
+      const hue = 250 + (i / buf.length) * 60;
+      const sat = 60 - v * 20;
+      const lit = 25 + v * 45;
+      ctx.fillStyle = v > 0.01 ? `hsla(${hue},${sat}%,${lit}%,${0.2 + v * 0.8})` : 'transparent';
+      ctx.fillRect(i * barW, H - h, barW - 0.5, h);
+    }
+
+    // Waveform overlay (thin line)
+    const wBuf = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(wBuf);
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(167,139,250,0.3)';
+    ctx.lineWidth = 1;
+    const sliceW = W / wBuf.length;
+    for (let i = 0; i < wBuf.length; i++) {
+      const y = ((wBuf[i] / 128) - 1) * (H * 0.25) + H * 0.5;
+      i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * sliceW, y);
+    }
+    ctx.stroke();
+  }
+  draw();
+}
+
+// ── OFFLINE RENDER + WAV EXPORT ──────────────────────────────
+async function startExport() {
+  const btn  = document.getElementById('exportBtn');
+  const bar  = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+  btn.disabled = true; btn.textContent = '⏳ Rendering…';
+  setStatus('generating', 'offline render: ' + exportDuration + 's @ 44.1kHz stereo…');
+  bar.classList.add('visible'); fill.style.width = '0%';
+
+  const sr = 44100, dur = exportDuration, ns = sr * dur;
+  const offCtx = new OfflineAudioContext(2, ns, sr);
+
+  const master = offCtx.createGain(); master.gain.value = 0.6;
+  const conv   = offCtx.createConvolver();
+  const irLen  = sr * Math.min(params.reverbTime, 8);
+  const ir     = offCtx.createBuffer(2, irLen, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < irLen; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2);
+  }
+  conv.buffer = ir;
+
+  const rSend = offCtx.createGain(); rSend.gain.value = 0.5;
+  const dSend = offCtx.createGain(); dSend.gain.value = 0.55;
+  const hp    = offCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = params.lowCut;
+  const lp    = offCtx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = params.highCut; lp.Q.value = 0.5;
+
+  master.connect(hp); hp.connect(lp); lp.connect(dSend); lp.connect(conv);
+  conv.connect(rSend); dSend.connect(offCtx.destination); rSend.connect(offCtx.destination);
+
+  const lfo  = offCtx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.04;
+  const lfoG = offCtx.createGain(); lfoG.gain.value = params.modDepth * 0.6;
+  lfo.connect(lfoG); lfo.start(0);
+
+  if (layerStates.sub) {
+    const s = offCtx.createOscillator(); s.type = 'sine'; s.frequency.value = params.subFreq;
+    const g = offCtx.createGain(); g.gain.value = params.layerAmps.sub;
+    s.connect(g); g.connect(master); s.start(0); s.stop(dur);
+  }
+  if (layerStates.pad) {
+    params.scale.forEach((iv, i) => {
+      const freq = scaleFreq(params.rootFreq, params.scale, i);
+      [-5, 0, 5].forEach(det => {
+        const o = offCtx.createOscillator();
+        o.type = i % 2 === 0 ? 'sawtooth' : 'triangle';
+        o.frequency.value = freq; o.detune.value = det;
+        const f = offCtx.createBiquadFilter(); f.type = 'lowpass';
+        f.frequency.value = 400 + params.padWarmth * 2000;
+        const g = offCtx.createGain(); g.gain.value = 0.05 * params.layerAmps.pad * 2;
+        o.connect(f); f.connect(g); g.connect(master); o.start(0); o.stop(dur);
+      });
+    });
+  }
+  if (layerStates.high) {
+    const h = offCtx.createOscillator(); h.type = 'sine'; h.frequency.value = params.rootFreq * 4;
+    lfoG.connect(h.frequency);
+    const g = offCtx.createGain(); g.gain.value = params.layerAmps.high;
+    h.connect(g); g.connect(master); h.start(0); h.stop(dur);
+  }
+  if (layerStates.noise) {
+    const nb   = offCtx.createBuffer(1, ns, sr);
+    const nd   = nb.getChannelData(0);
+    for (let i = 0; i < ns; i++) nd[i] = Math.random() * 2 - 1;
+    const nsrc = offCtx.createBufferSource(); nsrc.buffer = nb;
+    const nf   = offCtx.createBiquadFilter(); nf.type = 'bandpass';
+    nf.frequency.value = params.noiseColor; nf.Q.value = 3;
+    const ng = offCtx.createGain(); ng.gain.value = params.textureAmt * 0.08;
+    nsrc.connect(nf); nf.connect(ng); ng.connect(master); nsrc.start(0);
+  }
+  if (layerStates.pulse) {
+    const po  = offCtx.createOscillator(); po.type = 'triangle'; po.frequency.value = params.rootFreq * 1.5;
+    const pl  = offCtx.createOscillator(); pl.type = 'sine'; pl.frequency.value = params.pulseRate;
+    const plg = offCtx.createGain(); plg.gain.value = params.layerAmps.pulse * 8;
+    pl.connect(plg); plg.connect(po.frequency);
+    const pg = offCtx.createGain(); pg.gain.value = params.layerAmps.pulse;
+    po.connect(pg); pg.connect(master);
+    po.start(0); po.stop(dur); pl.start(0); pl.stop(dur);
+  }
+
+  let rp = 0;
+  const pi = setInterval(() => { rp = Math.min(rp + 3, 92); fill.style.width = rp + '%'; }, 200);
+
+  try {
+    const rendered = await offCtx.startRendering();
+    clearInterval(pi); fill.style.width = '100%';
+
+    const wavBytes = audioBufferToWav(rendered);
+    const blob = new Blob([wavBytes], { type: 'audio/wav' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const slug = (document.getElementById('promptInput').value || 'aether')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 32);
+    a.download = `aether-${slug}-${dur}s.wav`;
+    a.href = url; a.click();
+    URL.revokeObjectURL(url);
+
+    setStatus('idle', 'exported: ' + dur + 's WAV · 44.1kHz · 16-bit stereo');
+    toast('WAV exported ✓ (' + (dur/60).toFixed(1) + ' min)', 'success');
+  } catch(e) {
+    setStatus('idle', 'render failed');
+    console.error(e);
+    toast('Render failed: ' + e.message, 'error');
+  }
+
+  setTimeout(() => { bar.classList.remove('visible'); fill.style.width = '0%'; }, 1200);
+  btn.disabled = false; btn.innerHTML = '⬇ &nbsp;Export WAV';
+}
+
+// ── WAV ENCODER ──────────────────────────────────────────────
+// Hand-written 16-bit PCM WAV encoder — no external dependencies
+function audioBufferToWav(buffer) {
+  const nCh = buffer.numberOfChannels;
+  const nS  = buffer.length;
+  const sr  = buffer.sampleRate;
+  const bps = 16;
+  const bR  = sr * nCh * (bps / 8);
+  const bA  = nCh * (bps / 8);
+  const dS  = nS * nCh * (bps / 8);
+  const buf = new ArrayBuffer(44 + dS);
+  const v   = new DataView(buf);
+
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); v.setUint32(4, 36 + dS, true);
+  ws(8, 'WAVE'); ws(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, nCh, true); v.setUint32(24, sr, true);
+  v.setUint32(28, bR, true);  v.setUint16(32, bA, true);
+  v.setUint16(34, bps, true); ws(36, 'data');
+  v.setUint32(40, dS, true);
+
+  const chs = [];
+  for (let c = 0; c < nCh; c++) chs.push(buffer.getChannelData(c));
+  let off = 44;
+  for (let i = 0; i < nS; i++) {
+    for (let c = 0; c < nCh; c++) {
+      const s = Math.max(-1, Math.min(1, chs[c][i]));
+      v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      off += 2;
+    }
+  }
+  return buf;
+}
+
+function toast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = type === 'error' ? 'rgba(248,113,113,0.4)'
+                      : type === 'success' ? 'rgba(52,211,153,0.4)'
+                      : 'rgba(124,108,255,0.3)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Init param display on load
+updateParamDisplay();
+updateLayerFreqDisplay();
+</script>
+</body>
+</html>
