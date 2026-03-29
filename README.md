@@ -184,6 +184,11 @@ v.setUint32(24, 44100, true); // sample rate
 
 > **Note:** No model weights, no audio files, no external assets. The entire application is self-contained in `index.html`. I have also used AI to add comments in the index file for further understanding and changes. 
 
+## Visual Results
+The final application features a clean, professional interface.
+<img width="1679" height="854" alt="Screenshot 2026-03-29 at 1 58 35 PM" src="https://github.com/user-attachments/assets/f04c66ab-c7f1-4e83-ad36-f07a32f6a9d7" />
+<img width="1170" height="561" alt="Screenshot 2026-03-29 at 2 01 45 PM" src="https://github.com/user-attachments/assets/b314ab3d-4f81-4948-afd2-996e86214298" />
+
 ## Running Locally
 
 ```bash
